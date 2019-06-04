@@ -1,0 +1,68 @@
+#include <iostream>
+#include <bits/stdc++.h>
+using namespace std;
+
+int main()
+{
+    fstream orignalFile,Copyfile;
+    orignalFile.open("Source.txt",ios::in|ios::out|ios::binary);
+    orignalFile.seekp(0,ios::end);
+    int filesize=orignalFile.tellp();
+    char *arr=new char [filesize];
+    orignalFile.seekg(0,ios::beg);
+    orignalFile.read(arr,filesize);
+    ///cout<<arr<<endl;
+    vector<string>strings;
+    string temp="";
+
+    for(int i=0;i<filesize;i++){
+        if(arr[i]!=','&&arr[i]!='.'&&arr[i]!=' ')
+        {
+            temp+=arr[i];
+
+        }
+        else
+        {
+            strings.push_back(temp);
+            temp="";
+        }
+    }
+    if (temp!="") strings.push_back(temp);
+
+    vector<string> substrings;
+    for(int i=0;i<strings.size();i++)
+    if(strings[i]=="") {
+        strings.erase(strings.begin()+i);
+        i--;
+    }
+    //cout<<strings.size()<<endl;
+    for (int i=0;i<strings.size();i++){
+        for(int len =1;len<=strings[i].size();len++)
+        {
+            for (int j=0;j<=strings[i].size()-len;j++)
+            {
+                substrings.push_back(strings[i].substr(j,len));
+            }
+        }
+
+
+    }
+
+    Copyfile.open("Destination.txt",ios::in|ios::out|ios::binary|ios::trunc);
+    for(int i=0;i<substrings.size();i++){
+         temp=substrings[i];
+         reverse(temp.begin(),temp.end());
+        if(substrings[i]==temp){
+            cout<<substrings[i]<<endl;
+
+            Copyfile<<substrings[i];
+            Copyfile<<"\r\n";
+        }
+
+
+    }
+    Copyfile.close();
+    orignalFile.close();
+
+    return 0;
+}
