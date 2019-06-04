@@ -1,0 +1,380 @@
+#include<bits/stdc++.h>
+#include<strstream>
+using namespace std;
+
+#define VS(v) (int)v.size()
+#define vs(v) (int)v.size()
+
+const string Name_Of_File = "notebooks.txt";
+
+class Notebook {
+public:
+	char ID[21];  	//max len =20 xa12345
+	char Brand[21]; //max len = 20 Apple
+	char Processor_type[51]; 	//max len = 50 Intel Core i5
+	char Operating_System[21];	//max 20 Mac OS X 10.10
+	const static int MaxRecordSize = 130;
+
+	void DisplayTheNote() {
+		cout << "ID: " << ID << "\n";
+		cout << "Brand: " << Brand << "\n";
+		cout << "Processor Type: " << Processor_type << "\n";
+		cout << "OS: " << Operating_System << "\n";
+
+	}
+
+	// given a filestream provided that the put cursor is in the
+	// correct place, it writes to the file.
+	void WriteFile(fstream &file) {
+		char record[MaxRecordSize];
+		strcpy(record, ID);
+		strcat(record, "|");
+		strcat(record, Brand);
+		strcat(record, "|");
+		strcat(record, Processor_type);
+		strcat(record, "|");
+		strcat(record, Operating_System);
+		strcat(record, "|");
+
+		short length = strlen(record);
+		file.write((char *) &length, sizeof length);
+		file.write(record, length);
+	}
+	// the add functionality
+	void writeNotebook() {
+		fstream stream;
+		char record[MaxRecordSize];
+		strcpy(record, ID);
+		strcat(record, "|");
+		strcat(record, Brand);
+		strcat(record, "|");
+		strcat(record, Processor_type);
+		strcat(record, "|");
+		strcat(record, Operating_System);
+		strcat(record, "|");
+
+		short length = strlen(record);
+
+		stream.open(Name_Of_File.c_str(), ios::in | ios::binary);
+		int Avl_list;
+		short Avl_list_len;
+		char Astrsk = '*';
+
+		stream.read((char *) &Avl_list, sizeof Avl_list); // read file header (avail list header)
+		int prv = 0;
+		bool written = 0; // flag to check if record is written in a deleted space or not
+		while (Avl_list != -1) { // while there are deleted records
+			int cur = Avl_list;  // cur record (where the cursor is)
+			stream.seekg(Avl_list, ios::beg);
+			stream.read(&Astrsk, sizeof Astrsk);
+			stream.read((char *) &Avl_list, sizeof Avl_list);
+			stream.read((char *) &Avl_list_len, sizeof Avl_list_len); // cur record length
+			if (Avl_list_len < length) { // small space
+				prv = cur;
+				continue;
+			}
+			// nxt is Avl_list
+			stream.close();
+			stream.open(Name_Of_File.c_str(), ios::out | ios::in | ios::binary);
+			// update the list
+			stream.seekp(prv, ios::beg);
+			if (prv != 0) // if previous record is the header(offset == 0), no need to write the *
+				stream.write(&Astrsk, sizeof Astrsk);
+			stream.write((char *) &Avl_list, sizeof Avl_list);
+
+			// write record
+			stream.seekp(cur, ios::beg);
+			Avl_list_len -= 2; // it's the total, we only want to write the record length disregarding the two bytes for the short
+			stream.write((char *) &Avl_list_len, sizeof(Avl_list_len)); // intrenal fragmentation
+			stream.write(record, length);
+			stream.close();
+			written = 1;
+			break;
+		}
+		if (!written) {
+			stream.close();
+			stream.open(Name_Of_File.c_str(), ios::out | ios::app | ios::binary);
+			stream.write((char *) &length, sizeof(length));
+			stream.write(record, length);
+			stream.close();
+		}
+
+	}
+
+	// reads a record, provided the stream's cursor is pointing to the beg of the record
+	void Read_Note(fstream & stream) {
+
+		short length;
+		stream.read((char*) &length, sizeof(length));
+		char * record = new char[length];
+		stream.read(record, length);
+
+		//record[length]=0;
+		istrstream strbuff(record);
+		strbuff >> *this;
+//		cout << "\nhere: " << s.name << endl;
+	}
+
+	friend istream& operator>>(istream& stream, Notebook &st) {
+		stream.getline(st.ID, 20, '|');
+		if (strlen(st.ID) == 0)
+			return stream;
+		stream.getline(st.Brand, 20, '|');
+		stream.getline(st.Processor_type, 50, '|');
+		stream.getline(st.Operating_System, 20, '|');
+		return stream;
+	}
+
+	void Input_Note() {
+		cin.ignore();
+		cout << "ID: ";
+		cin.getline(ID, 20);
+		cout << "Brand: ";
+		cin.getline(Brand, 20);
+		cout << "Processor type: ";
+		cin.getline(Processor_type, 50);
+		cout << "Operating system: ";
+		cin.getline(Operating_System, 20);
+	}
+};
+
+int Search_ID(char ID[21]) {
+	fstream file(Name_Of_File.c_str(), ios::in | ios::binary);
+	file.seekg(4, ios::cur); // ignore Avl_list list header
+	char c;
+	int Rec_offset = 4; // maintain track of the cursor
+	while (true) {
+		file.read(&c, sizeof c);
+		if (file.eof())
+			return -1;
+		Rec_offset++;
+		if (c == '*') { // deleted record
+			file.seekg(4, ios::cur); // ignore avail list's nxt ptr
+			Rec_offset += 4;
+			short Avl_list_len;
+			file.read((char *) &Avl_list_len, sizeof Avl_list_len); // deleted record's length
+			Rec_offset += 2;
+			file.seekg(Avl_list_len - 1 - 4 - 2, ios::cur); // move through the rest of the record
+			Rec_offset += Avl_list_len - 1 - 4 - 2;
+			continue;
+		}
+		// undo the read, it wasn't an *
+		file.seekg(-1, ios::cur);
+		Rec_offset--;
+
+		short rec_len;
+		file.read((char *) &rec_len, sizeof rec_len); // know record length to add it to offset
+		file.seekg(-2, ios::cur); // adjust cursor so Read_Note() reads it
+
+		Notebook rec;
+		rec.Read_Note(file);
+		if (strcmp(rec.ID, ID) == 0) {
+			file.close();
+			return Rec_offset;
+		}
+		Rec_offset += rec_len + 2;
+	}
+	file.close();
+	return -1;
+}
+
+void Delete_ID(char ID[21]) {
+	int Rec_offset = Search_ID(ID);
+	if (Rec_offset == -1) {
+		cout << "Record Not Found\n";
+		return;
+	}
+	fstream file;
+
+	file.open(Name_Of_File.c_str(), ios::in | ios::binary);
+	file.seekg(Rec_offset, ios::beg);
+	short len;
+	file.read((char *) &len, sizeof len);
+	len += 2; // total available space
+
+	file.seekg(0, ios::beg);
+	int header; // the avail list header
+	file.read((char *) &header, sizeof header);
+	/*while (nxt != -1) {
+		char c;
+		file.seekg(nxt, ios::beg);
+		cur = nxt;
+		file.read(&c, sizeof c);
+		file.read((char *) &nxt, sizeof nxt);
+		if (nxt == -1)
+			break;
+	}*/
+	file.close();
+
+	file.open(Name_Of_File.c_str(), ios::out | ios::in | ios::binary);
+
+	// update record to deleted
+	file.seekp(Rec_offset, ios::beg);
+	char Astrsk = '*';
+	file.write(&Astrsk, sizeof Astrsk);
+	file.write((char *) &header, sizeof header);
+	file.write((char *) &len, sizeof len);
+
+	// update header
+	file.seekp(0, ios::beg);
+	/*if (cur != 0)
+		file.write(&Astrsk, sizeof Astrsk);*/
+	file.write((char *) &Rec_offset , sizeof Rec_offset);
+	file.close();
+}
+
+void Update_Record(char ID[21]) {
+	int Rec_offset = Search_ID(ID);
+	if (Rec_offset == -1) {
+		cout << "Record Not Found\n";
+		return;
+	}
+	Notebook nw_rec;
+	nw_rec.Input_Note();
+
+	fstream file;
+	file.open(Name_Of_File.c_str(), ios::in | ios::binary);
+	file.seekg(Rec_offset, ios::beg);
+	short old_len;
+	file.read((char *) &old_len, sizeof old_len);
+	file.close();
+
+	char record[Notebook::MaxRecordSize];
+	strcpy(record, nw_rec.ID);
+	strcat(record, "|");
+	strcat(record, nw_rec.Brand);
+	strcat(record, "|");
+	strcat(record, nw_rec.Processor_type);
+	strcat(record, "|");
+	strcat(record, nw_rec.Operating_System);
+	strcat(record, "|");
+
+	short nw_len = strlen(record);
+
+	if (nw_len <= old_len) {
+		file.open(Name_Of_File.c_str(), ios::out | ios::in | ios::binary);
+		file.seekp(Rec_offset, ios::beg);
+		file.write((char *) &old_len, sizeof old_len);
+		file.write(record, nw_len);
+		return;
+	}
+	Delete_ID(ID);
+	nw_rec.writeNotebook();
+
+}
+
+// returns a vector of all non-deleted records in the file
+void ReadAll(vector<Notebook> &ret, bool print) {
+	fstream file(Name_Of_File.c_str(), ios::in | ios::binary);
+	file.seekg(4, ios::cur); // ignore header
+
+	ret.clear();
+	char Astrsk;
+	while (true) {
+		file.read(&Astrsk, sizeof Astrsk);
+		if (file.eof())
+			break;
+		if (Astrsk == '*') { // deleted record
+			short len;
+			file.seekg(4, ios::cur); // ignore the next ptr in avail list
+			file.read((char*) &len, sizeof len); // read length of deleted record
+			file.seekg(len - 1 - 4 - 2, ios::cur); //ignore rest of deleted record
+			continue;
+		}
+		file.seekg(-1, ios::cur); // undo the 1 byte read to get back at the beginning of the record
+		ret.resize(VS(ret) + 1);
+		ret.back().Read_Note(file);
+	}
+	file.close();
+	if (print) // if user wants to print all records
+		for (auto Notebook r : ret)
+			r.DisplayTheNote();
+}
+
+int main() {
+	// To clear file's content, it must be deleted
+	// If file is present, the header is assumed to be always in the file.
+	fstream file(Name_Of_File.c_str(), ios::in | ios::binary);
+	if (file.fail()) {
+		file.open(Name_Of_File.c_str(), ios::out | ios::binary);
+		int Avl_list = -1;
+		file.write((char *) &Avl_list, sizeof Avl_list);
+		file.close();
+	}
+	file.close();
+	while (true) {
+		cout
+				<< "1) Add a notebook\n2) Update a notebook\n3) Delete a notebook\n4) Display a notebook\n"
+				<< "5) Compact the file\n6) VisualizeFile\n7) Exit\nPlease Enter Your Choice : ";
+		int ch;
+		cin >> ch;
+		if (ch == 1) { // add
+			Notebook n;
+			n.Input_Note();
+			n.writeNotebook();
+		} else if (ch == 2) { // update
+			char ID[22];
+			cout << "Enter ID: ";
+			cin >> ID;
+			Update_Record(ID);
+		} else if (ch == 3) { // delete
+			char ID[22];
+			cout << "Enter ID: ";
+			cin >> ID;
+			Delete_ID(ID);
+		} else if (ch == 4) { // display
+			char ID[22];
+			cout << "Enter ID: ";
+			cin >> ID;
+			int Rec_offset = Search_ID(ID);
+			if (Rec_offset == -1) {
+				cout << "Not Found!" << endl;
+				continue;
+			}
+			Notebook rec;
+
+			file.open(Name_Of_File.c_str(), ios::in | ios::binary);
+			file.seekg(Rec_offset, ios::beg);
+			rec.Read_Note(file);
+			file.close();
+			rec.DisplayTheNote();
+
+		} else if (ch == 5) { // compact
+			vector<Notebook> v;
+			ReadAll(v, 1);
+			fstream newfile;
+			newfile.open("new file.txt", ios::out | ios::binary); // write the new file
+			int Avl_list = -1;
+			newfile.write((char *) &Avl_list, sizeof Avl_list);
+			for(auto Notebook r:v)
+				r.WriteFile(newfile);
+			newfile.close();
+		} else if (ch == 6){
+		    file.open(Name_Of_File.c_str(), ios::in | ios::binary);
+		    file.seekg(4, ios::cur);
+            char Astrsk;
+            while (true) {
+                file.read(&Astrsk, sizeof Astrsk);
+                if (file.eof())
+                    cout<<"\r\n";
+                    break;
+                if (Astrsk == '*') { // deleted record
+                    cout<<"*";
+                }
+                else //non-deleted record
+                {
+                    cout<<'-';
+                }
+                short len;
+                file.seekg(4, ios::cur); // ignore the next ptr in avail list
+                file.read((char*) &len, sizeof len); // read length of record
+                file.seekg(len - 1 - 4 - 2, ios::cur); //ignore rest of record
+            }
+            file.close();
+        } else if (ch == 7) {
+			break;
+        }
+	}
+	return 0;
+}
+
