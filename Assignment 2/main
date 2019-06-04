@@ -1,0 +1,11 @@
+#include <iostream>
+#include "SimpleIndex.h"
+
+using namespace std;
+
+int main()
+{
+    SimpleIndex x;
+    x.usermenu();
+    return 0;
+}
