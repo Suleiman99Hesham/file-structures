@@ -1,0 +1,138 @@
+#include <iostream>
+#include <string>
+#include <string.h>
+#include <fstream>
+using namespace std;
+
+struct List{
+    int key;
+    int next=-1;
+    int repter=0;
+};
+
+struct bucket{
+    char ID1[9],ID2[9];
+    int next;
+
+};
+
+struct Student{
+    char ID[9];
+    char name[49];
+    char address[49];
+
+};
+int MultiplecationMethod(char ID[]){
+    int rec=((ID[0]-48)*(ID[1]-48)%100);
+    rec*=0.618033;
+    rec%=1;
+    rec*=997;
+    cout<<rec<<endl;
+    return rec;
+
+}
+
+void fell_arrays(List lis[],bucket buc[],int n){
+    fstream hash_file("Hash.txt",ios::out);
+    fstream index_file("Index.txt",ios::out);
+    for (int i=0;i<n;i++){
+        hash_file.write((char *)&lis[i],sizeof(Student));
+        index_file.write((char*)&buc[i],sizeof(bucket));
+    }
+    hash_file.close();
+    index_file.close();
+}
+
+void search_for_student(char ID[],List lis[],bucket ele[]){
+    fstream in_file("record.txt",ios::in|ios::out|ios::app);
+    int place=MultiplecationMethod(ID);
+    Student sss;
+    int temp;
+    for (int i=0;i<997;i++){
+        if (lis[i].key==place){
+            while (temp!=-1){
+                if(strcmp(ID,ele[lis[i].next].ID2)){
+                    in_file.seekg(lis[i].repter*place*sizeof(List),ios::beg);
+                    in_file.read((char *)& sss,sizeof(List));
+                    cout<<sss.ID<<" "<<sss.name<<" "<<sss.address<<endl;
+                    return;
+                }
+                else if (strcmp(ID,ele[lis[i].next].ID1)){
+                    in_file.seekg((lis[i].repter-1)*place*sizeof(List),ios::beg);
+                    in_file.read((char *)& sss,sizeof(List));
+                    cout<<sss.ID<<" "<<sss.name<<" "<<sss.address<<endl;
+                    return ;
+                }
+                else {
+                    temp=ele[i].next;
+                    lis[i].repter-=2;
+                }
+            }
+        }
+    }
+
+}
+
+
+int main()
+{
+
+    int number=0,number_of_elements=0;
+    List indexes[997];
+    bucket elements[997];
+    fstream file("record.txt",ios::in|ios::out|ios::app);
+    for (int i=0;i<997;i++){
+        indexes[i].key=i;
+        indexes[i].key=i;
+    }
+    cout<<"Enter number of students to enter : ";
+    cin>>number;
+    for (int i=0;i<number;i++){
+        Student newstudent;
+        cout<<"Enter ID : ";
+        cin>>newstudent.ID;
+        int place=MultiplecationMethod(newstudent.ID);
+        for (int i=0;i<997;i++){
+            if (indexes[i].key==place){
+                if (indexes[i].next==-1){
+                    indexes[i].next=number_of_elements;
+                    strcpy(elements[number_of_elements].ID1,newstudent.ID);
+                    indexes[i].repter++;
+                    number_of_elements++;
+                }
+                else if (indexes[i].key!=-1&&indexes [i].repter<2){
+                    strcpy(elements[indexes[i].next].ID2,newstudent.ID);
+                    indexes[i].repter=2;
+                }
+                else {
+                    elements[number_of_elements].next=indexes[i].next;
+                    indexes[i].next=number_of_elements;
+                    strcpy(elements[number_of_elements].ID1,newstudent.ID);
+                    indexes[i].repter++;
+                    number_of_elements++;
+                }
+            }
+        }
+        cout<<"Enter name : ";
+        cin>>newstudent.name;
+        cout<<"Enter Address : ";
+        cin>>newstudent.address;
+        char full_details[110];
+        strcpy(full_details,newstudent.ID);
+        strcat(full_details,"|");
+        strcat(full_details,newstudent.name);
+        strcat(full_details,"|");
+        strcat(full_details,newstudent.address);
+        strcat(full_details,"|");
+        file.write(full_details,sizeof(full_details));
+    }
+    file.close();
+    fell_arrays(indexes,elements,number);
+    char ID[9];
+    cout<<"Enter The ID : ";
+    cin>>ID;
+    search_for_student(ID,indexes,elements);
+
+
+    return 0;
+}
